@@ -1,0 +1,14 @@
+[package]
+name = "endfio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = "1"
+lazy_static = "1"
+itertools = "0.10"
+is_sorted = "0.1"
+static_assertions = "1.1"
+lexical-write-float = "0.8"
+chrono = "0.4"
+thiserror = "1"
