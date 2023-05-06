@@ -3,55 +3,49 @@
 use std::fmt::Display;
 use thiserror::Error;
 
+///
+/// Highest level error from endfio
+///
 #[derive(Error, Debug)]
 pub enum EndfError {
-    ///
-    ///
-    ///
+    /// Raised when parsing of the any of the ENDF numbers have failed
     #[error("ENDF: Encountered parsing error:\n  {source}")]
     Parse {
         #[from]
         source: ParseError,
     },
 
-    ///
-    /// Encountered an I/O error
-    ///
+    /// Raised when encountered an I/O error
     #[error("ENDF: Encountered I/O error:\n  {source}")]
     IOError {
         #[from]
         source: std::io::Error,
     },
-    ///
-    ///
+
+    /// Raised when there are problems with formatting or data in the file
     #[error("ENDF: There was problem with the file format:\n  {source}")]
     Format {
         #[from]
         source: FormatError,
     },
 
-    ///
-    ///
-    ///
+    /// Raised when reached unexpected end of ENDF section when reading the data
     #[error("Unexpected end of iterator when reading data")]
     EndOfSection,
-
-    ///
-    /// An error that does not fit any defined category
-    ///
-    /// A case to catch errors that do not fir any defined category
-    ///
-    #[error("ENDF: Encountered some error:\n  {source}")]
-    Generic { source: Box<dyn std::error::Error> },
 }
 
+///
+/// Covers failed conversions to number from ENDF-formatted string
+///
 #[derive(Error, Debug)]
 pub enum ParseError {
+    /// Failed float conversion
     #[error("Failed conversion of '{context}' due to: {kind}")]
     Float {
         kind: std::num::ParseFloatError,
         context: String,
     },
+    /// Failed int conversion
     #[error("Failed conversion of '{context}' due to: {kind}")]
     Int {
         kind: std::num::ParseIntError,
@@ -59,26 +53,39 @@ pub enum ParseError {
     },
 }
 
+///
+/// Lists all defined types of ENDF file/data fromatting error
+///
 #[derive(Error, Debug)]
 pub enum FormatErrorKind {
+    /// Raised when ENDF requires a specific length of a line, but it does not
+    /// match the expectation
     #[error("Line must be {expected} characters in length is: {length}")]
     WrongLineLength { expected: usize, length: usize },
+
+    /// Raised if reading of the control characters at the end of an ENDF line
+    /// failed
     #[error("Failed to properly parse contol (MAT, MF, MT) entries.")]
     InvalidControl,
+
+    /// Raised when MAT number exceeds its range
     #[error("Invalid range of MAT number: {mat}")]
     InvalidMATRange { mat: i32 },
+
+    /// Raised when
     #[error("Invalid EVAL, DIST or REV format")]
     InvalidDateFormat,
     #[error("Contains non-ASCII characters")]
     NonASCII,
+
+    /// It is used when dealing with very specific errors for which there is
+    /// no benefit defining new error category
     #[error("Miscellaneous error. See context for error message")]
     Misc,
 }
 
 ///
-/// Error for a case there was a problem reading the ENDF file
-///
-///
+/// Covers a case when there is a problem with the format of endf file or data.
 ///
 #[derive(Error, Debug)]
 pub struct FormatError {
@@ -87,6 +94,7 @@ pub struct FormatError {
 }
 
 impl FormatError {
+    /// Create new instance of the error
     pub fn new(kind: FormatErrorKind, context: &str) -> Self {
         Self {
             kind,
@@ -94,6 +102,7 @@ impl FormatError {
         }
     }
 
+    /// Shortcut to create an instance of miscellaneous error
     pub fn misc(context: &str) -> Self {
         Self {
             kind: FormatErrorKind::Misc,
@@ -105,13 +114,5 @@ impl FormatError {
 impl Display for FormatError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n{}\n  Error:\n {}\n  ", self.context, self.kind)
-    }
-}
-
-impl From<String> for EndfError {
-    fn from(value: String) -> Self {
-        EndfError::Generic {
-            source: value.into(),
-        }
     }
 }

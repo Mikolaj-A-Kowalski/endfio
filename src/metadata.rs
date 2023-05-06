@@ -544,7 +544,7 @@ impl LibraryInfo {
 }
 
 impl FromStr for LibraryInfo {
-    type Err = String;
+    type Err = FormatError;
 
     ///
     /// Convert from string
@@ -553,14 +553,18 @@ impl FromStr for LibraryInfo {
     ///
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match LIBRARY_NAME_PATTERN.captures(s) {
-            None => Err(format!(
+            None => Err(FormatError::misc(&format!(
                 "{} did not match library name version pattern e.g: ENDF/B 8.1.0",
                 s
-            )),
+            ))),
             Some(groups) => {
-                let nlib = *NAME_TO_NLIB.get(&groups[1]).ok_or("Unknown library")?;
-                let nver = i32::from_str(&groups[2]).or(Err("Failed conversion".to_string()))?;
-                let lrel = i32::from_str(&groups[3]).or(Err("Failed conversion".to_string()))?;
+                let nlib = *NAME_TO_NLIB
+                    .get(&groups[1])
+                    .ok_or(FormatError::misc("Unknown library"))?;
+                let nver = i32::from_str(&groups[2])
+                    .map_err(|_| FormatError::misc("Invalid Library format"))?;
+                let lrel = i32::from_str(&groups[3])
+                    .map_err(|_| FormatError::misc("Invalid Library format"))?;
                 Ok(Self { nlib, nver, lrel })
             }
         }

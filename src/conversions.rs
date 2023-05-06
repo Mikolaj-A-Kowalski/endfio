@@ -2,13 +2,13 @@
 //!
 //! # Integers
 //! Following the ENDF Manual, the integers consist of up to 10 digits and
-//! a sign (with `+` sign beeing optional) e.g.: `±1234567890`.
+//! a sign (with `+` sign being optional) e.g.: `±1234567890`.
 //! Thus the maximum number that can be represented is `9'999'999'999`.
 //!
 //! Since the very large numbers are unlikely to be present we use [i32] for the
 //! ENDF integers (with maximum of 2'147'483'647). The drawback is that we loose
 //! a lot of range, the benefit that we do not need to worry about integer
-//! fitting into 11-character window.Thus, we can get away with using standard
+//! fitting into 11-character window. Thus, we can get away with using standard
 //! RUST printing for the integers.
 //!
 //! # Floats
