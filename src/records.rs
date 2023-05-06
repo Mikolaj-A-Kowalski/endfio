@@ -340,6 +340,47 @@ impl Record for Table2Record {
     }
 }
 
+///
+/// A Text record
+///
+/// Small temporary struct to wrap around a string view and verify that it can
+/// be printed inside an ENDF text record
+///
+#[derive(Debug)]
+pub struct TextRecord<'a> {
+    text: &'a str,
+}
+
+///
+/// Allow to try to create the record from string
+///
+impl<'a> TextRecord<'a> {
+    pub fn new(s: &'a str) -> Result<Self, FormatError> {
+        if s.len() > 66 {
+            Err(FormatError::new(
+                FormatErrorKind::WrongLineLength {
+                    expected: 66,
+                    length: s.len(),
+                },
+                s,
+            ))
+        } else if !s.is_ascii() {
+            Err(FormatError::new(FormatErrorKind::NonASCII, s))
+        } else {
+            Ok(Self { text: s })
+        }
+    }
+}
+
+///
+/// Allow string views to be interpreted as TEXT records
+///
+impl<'a> Record for TextRecord<'a> {
+    fn stringify(&self) -> String {
+        format!("{:<66}", self.text)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -497,5 +538,22 @@ mod tests {
             interpolation: vec![InterpolationType::Histogram, InterpolationType::LogLog],
         };
         assert_eq!(result, record.write());
+    }
+
+    #[test]
+    fn test_text_print() {
+        let result = "This is a string printed                                          ";
+        let text = TextRecord::new("This is a string printed").unwrap();
+        assert_eq!(result, text.write());
+    }
+
+    #[test]
+    fn test_text_errors() {
+        assert!(TextRecord::new(
+            "This string contains more than 66 character and does not fit into ENDF line"
+        )
+        .is_err());
+
+        assert!(TextRecord::new("This string contains is not ascii χρ").is_err());
     }
 }
