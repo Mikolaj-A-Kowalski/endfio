@@ -481,11 +481,11 @@ lazy_static! {
 /// use std::str::FromStr;
 ///
 /// let lib = LibraryInfo::from_str("ENDF/B 8.1").unwrap();
-/// assert_eq!(0, *lib.get_nlib());
-/// let (&ver, &release) = lib.get_version();
+/// assert_eq!(0, *lib.nlib());
+/// let (&ver, &release) = lib.version();
 /// assert_eq!(8, ver);
 /// assert_eq!(1, release);
-/// assert_eq!("ENDF/B", lib.get_name());
+/// assert_eq!("ENDF/B", lib.name());
 /// ```
 /// But it can also be constructed from components
 /// ```
@@ -522,14 +522,14 @@ impl LibraryInfo {
     ///
     /// Get value of the NLIB number, which specifies library
     ///
-    pub fn get_nlib(&self) -> &i32 {
+    pub fn nlib(&self) -> &i32 {
         &self.nlib
     }
 
     ///
     /// Get name of the library
     ///
-    pub fn get_name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         NLIB_TO_NAME[&self.nlib]
     }
 
@@ -538,7 +538,7 @@ impl LibraryInfo {
     ///
     /// Return tuple of (library_version, library_release)
     ///
-    pub fn get_version(&self) -> (&i32, &i32) {
+    pub fn version(&self) -> (&i32, &i32) {
         (&self.nver, &self.lrel)
     }
 }
@@ -637,7 +637,7 @@ impl IncidentParticle {
         }
     }
 
-    pub fn get_weight(&self) -> f64 {
+    pub fn weight(&self) -> f64 {
         match self {
             Self::Photon => 0.0,
             Self::Electron(w) => *w,
@@ -809,7 +809,7 @@ impl EvaluationInfo {
     ///
     /// Sequence number do distinguish modifications within the same release.
     ///
-    pub fn get_mod_seq(&self) -> &u32 {
+    pub fn mod_seq(&self) -> &u32 {
         &self.mod_seq
     }
 
@@ -819,7 +819,7 @@ impl EvaluationInfo {
     /// Strange ENDF number which is said to allow to distinguish evaluations
     /// with the same MAT, NMOD and NSUB numbers.
     ///
-    pub fn get_ldvr(&self) -> &i32 {
+    pub fn ldvr(&self) -> &i32 {
         &self.ldvr
     }
 
@@ -828,7 +828,7 @@ impl EvaluationInfo {
     ///
     /// E.g.: "IAEA", "CEA", "LANL"
     ///
-    pub fn get_labratory(&self) -> &str {
+    pub fn labratory(&self) -> &str {
         &self.laboratory
     }
 
@@ -837,7 +837,7 @@ impl EvaluationInfo {
     ///
     /// Can contain up to 33 characters.
     ///
-    pub fn get_author(&self) -> &str {
+    pub fn author(&self) -> &str {
         &self.author
     }
 
@@ -846,42 +846,42 @@ impl EvaluationInfo {
     ///
     /// Can contain up to 33 characters.
     ///
-    pub fn get_reference(&self) -> &str {
+    pub fn reference(&self) -> &str {
         &self.reference
     }
 
     ///
     /// Temperature of the nucleus in Kelvin
     ///
-    pub fn get_temperature(&self) -> &f64 {
+    pub fn temperature(&self) -> &f64 {
         &self.temperature
     }
 
     ///
     /// Maximum incident particle energy in eV
     ///
-    pub fn get_max_energy(&self) -> &f64 {
+    pub fn max_energy(&self) -> &f64 {
         &self.max_energy
     }
 
     ///
     /// Date of the evaluation
     ///
-    pub fn get_evaluation_date(&self) -> &NaiveDate {
+    pub fn evaluation_date(&self) -> &NaiveDate {
         &self.eval_date
     }
 
     ///
     /// Date of distribution
     ///
-    pub fn get_distribution_date(&self) -> &Option<NaiveDate> {
+    pub fn distribution_date(&self) -> &Option<NaiveDate> {
         &self.dist_date
     }
 
     ///
     /// Date of release
     ///
-    pub fn get_revision_date(&self) -> &Option<NaiveDate> {
+    pub fn revision_date(&self) -> &Option<NaiveDate> {
         &self.revision_date
     }
 
@@ -891,7 +891,7 @@ impl EvaluationInfo {
     /// This is another strange ENDF thing. Manual claims this date is assigned
     /// by NNDC
     ///
-    pub fn get_mater_file_date(&self) -> &Option<NaiveDate> {
+    pub fn mater_file_date(&self) -> &Option<NaiveDate> {
         &self.master_date
     }
 }
@@ -998,7 +998,7 @@ impl NuclideInfo {
     ///
     /// Atomic number of the nuclide
     ///
-    pub fn get_atomic_number(&self) -> &u32 {
+    pub fn atomic_number(&self) -> &u32 {
         &self.atomic_number
     }
 
@@ -1006,7 +1006,7 @@ impl NuclideInfo {
     /// Mass number of the nuclide
     ///
     /// Is 0 if the target is an element
-    pub fn get_mass_number(&self) -> &u32 {
+    pub fn mass_number(&self) -> &u32 {
         &self.mass_number
     }
 
@@ -1015,14 +1015,14 @@ impl NuclideInfo {
     ///
     /// Mass of the nuclide/element in neutron mass units
     ///
-    pub fn get_atomic_weight_ratio(&self) -> &f64 {
+    pub fn atomic_weight_ratio(&self) -> &f64 {
         &self.atomic_weight_ratio
     }
 
     ///
     /// Get Resonance data flag
     ///
-    pub fn get_lrp(&self) -> &ResonanceInfo {
+    pub fn lrp(&self) -> &ResonanceInfo {
         &self.lrp
     }
 
@@ -1036,7 +1036,7 @@ impl NuclideInfo {
     ///
     /// Get excitation energy relative to ground state \[eV\]
     ///
-    pub fn get_excitation_energy(&self) -> &f64 {
+    pub fn excitation_energy(&self) -> &f64 {
         &self.excitation_energy
     }
 
@@ -1053,7 +1053,7 @@ impl NuclideInfo {
     /// # Result
     /// (State Number, Isomeric State Number)
     ///
-    pub fn get_state_numbers(&self) -> (u32, u32) {
+    pub fn state_numbers(&self) -> (u32, u32) {
         (self.state_number, self.isomeric_state_number)
     }
 }
@@ -1140,28 +1140,28 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(2, *info.get_mod_seq());
-        assert_eq!(0, *info.get_ldvr());
-        assert_eq!("MyLab", info.get_labratory());
-        assert_eq!("Dr Neutron", info.get_author());
-        assert_eq!("Report", info.get_reference());
-        assert_eq!(273.0, *info.get_temperature());
-        assert_eq!(2.0e7, *info.get_max_energy());
+        assert_eq!(2, *info.mod_seq());
+        assert_eq!(0, *info.ldvr());
+        assert_eq!("MyLab", info.labratory());
+        assert_eq!("Dr Neutron", info.author());
+        assert_eq!("Report", info.reference());
+        assert_eq!(273.0, *info.temperature());
+        assert_eq!(2.0e7, *info.max_energy());
         assert_eq!(
             NaiveDate::from_str("1980-12-1").unwrap(),
-            *info.get_evaluation_date()
+            *info.evaluation_date()
         );
         assert_eq!(
             NaiveDate::from_str("1999-3-30").unwrap(),
-            info.get_distribution_date().unwrap()
+            info.distribution_date().unwrap()
         );
         assert_eq!(
             NaiveDate::from_str("2011-11-11").unwrap(),
-            info.get_revision_date().unwrap()
+            info.revision_date().unwrap()
         );
         assert_eq!(
             NaiveDate::from_str("1980-2-1").unwrap(),
-            info.get_mater_file_date().unwrap()
+            info.mater_file_date().unwrap()
         );
     }
 
@@ -1297,14 +1297,14 @@ mod tests {
         .unwrap();
 
         // Test getters
-        assert_eq!(92, *info.get_atomic_number());
-        assert_eq!(235, *info.get_mass_number());
-        assert_eq!(232.87, *info.get_atomic_weight_ratio());
-        assert_eq!(ResonanceInfo::UseBackground, *info.get_lrp());
+        assert_eq!(92, *info.atomic_number());
+        assert_eq!(235, *info.mass_number());
+        assert_eq!(232.87, *info.atomic_weight_ratio());
+        assert_eq!(ResonanceInfo::UseBackground, *info.lrp());
         assert!(info.is_fissile());
-        assert_eq!(0.0, *info.get_excitation_energy());
+        assert_eq!(0.0, *info.excitation_energy());
         assert!(!info.is_stable());
-        assert_eq!((1, 0), info.get_state_numbers())
+        assert_eq!((1, 0), info.state_numbers())
     }
 
     #[test]

@@ -205,7 +205,7 @@ impl Section {
     /// Modification sequence counts the number of times a section was changed
     /// since the first evaluation
     ///
-    pub fn get_mod_seq(&self) -> u32 {
+    pub fn mod_seq(&self) -> u32 {
         self.mod_seq
     }
 
@@ -759,13 +759,13 @@ impl Material {
 
         // Create the comment header lines according to the manual
         // Note that ENDF Manual may use an old term IREV when referring to IREL
-        let (nver, lrel) = library.get_version();
+        let (nver, lrel) = library.version();
         let rev_text = if *lrel == 0 {
             String::new()
         } else {
             format!("REVISION {lrel}")
         };
-        let lib_text = format!("{}-{}", library.get_name(), nver);
+        let lib_text = format!("{}-{}", library.name(), nver);
 
         let mut text = String::new();
         write!(
@@ -838,14 +838,14 @@ impl Material {
     ///
     /// Get reference to the [MaterialHeader]
     ///
-    pub fn get_header(&self) -> &MaterialHeader {
+    pub fn header(&self) -> &MaterialHeader {
         &self.header
     }
 
     ///
     /// Get mutable reference to the [MaterialHeader]
     ///
-    pub fn get_header_mut(&mut self) -> &mut MaterialHeader {
+    pub fn header_mut(&mut self) -> &mut MaterialHeader {
         &mut self.header
     }
 
@@ -885,7 +885,7 @@ impl Material {
                 l1: 1,
                 l2: 451,
                 n1: num_records as i32,
-                n2: *self.header.evaluation.get_mod_seq() as i32
+                n2: *self.header.evaluation.mod_seq() as i32
             }
             .write(),
             mat.number,
@@ -898,7 +898,7 @@ impl Material {
         // Print the rest of the sections
         for (mf, mt, sec, mod_seq) in self.into_iter().flat_map(|(mf, file)| {
             file.into_iter()
-                .map(|(mt, sec)| (*mf, *mt, sec, sec.get_mod_seq()))
+                .map(|(mt, sec)| (*mf, *mt, sec, sec.mod_seq()))
         }) {
             let records = sec.len();
             writeln!(
@@ -1458,19 +1458,19 @@ impl MaterialHeader {
         nxc: i32,
     ) -> Result<u32, EndfError> {
         // Create first numerical records
-        let zaid = (self.data.get_atomic_number() * 1000 + self.data.get_mass_number()) as f64;
+        let zaid = (self.data.atomic_number() * 1000 + self.data.mass_number()) as f64;
         let line1 = ContRecord {
             c1: zaid,
-            c2: *self.data.get_atomic_weight_ratio(),
-            l1: self.data.get_lrp().to_flag(),
+            c2: *self.data.atomic_weight_ratio(),
+            l1: self.data.lrp().to_flag(),
             l2: self.data.is_fissile() as i32,
-            n1: *self.library.get_nlib(),
-            n2: *self.evaluation.get_mod_seq() as i32,
+            n1: *self.library.nlib(),
+            n2: *self.evaluation.mod_seq() as i32,
         };
 
-        let (lis, liso) = self.data.get_state_numbers();
+        let (lis, liso) = self.data.state_numbers();
         let line2 = ContRecord {
-            c1: *self.data.get_excitation_energy(),
+            c1: *self.data.excitation_energy(),
             c2: !self.data.is_stable() as i32 as f64, // Yeah... ENDF...
             l1: lis as i32,
             l2: liso as i32,
@@ -1478,11 +1478,11 @@ impl MaterialHeader {
             n2: 6,
         };
 
-        let (nver, lrel) = self.library.get_version();
+        let (nver, lrel) = self.library.version();
         let nsub = metadata::sublibrary_number(&self.part, &self.kind);
         let line3 = ContRecord {
-            c1: self.part.get_weight(),
-            c2: *self.evaluation.get_max_energy(),
+            c1: self.part.weight(),
+            c2: *self.evaluation.max_energy(),
             l1: *lrel,
             l2: 0,
             n1: nsub,
@@ -1490,9 +1490,9 @@ impl MaterialHeader {
         };
 
         let line4 = ContRecord {
-            c1: *self.evaluation.get_temperature(),
+            c1: *self.evaluation.temperature(),
             c2: 0.0,
-            l1: *self.evaluation.get_ldvr(),
+            l1: *self.evaluation.ldvr(),
             l2: 0,
             n1: (self.comment.len() / 66) as i32 + 2,
             n2: nxc,
@@ -1514,25 +1514,22 @@ impl MaterialHeader {
 
         // Print string lines
         // 1st line
-        let atomic_number = *self.data.get_atomic_number();
-        let mass_number = *self.data.get_mass_number();
+        let atomic_number = *self.data.atomic_number();
+        let mass_number = *self.data.mass_number();
         let zsymm = format!(
             "{:>3}-{:<2}-{:>3}",
             atomic_number,
             metadata::element_symbol(atomic_number as usize)?,
             mass_number
         );
-        let edate = format!(
-            "EVAL-{}",
-            self.evaluation.get_evaluation_date().format("%h%y")
-        );
+        let edate = format!("EVAL-{}", self.evaluation.evaluation_date().format("%h%y"));
         writeln!(
             stream,
             "{:<10} {:<11}{:<11}{:<33}{:>4}{:>2}{:>3}{:>5}",
             zsymm,
-            self.evaluation.get_labratory(),
+            self.evaluation.labratory(),
             edate,
-            self.evaluation.get_author(),
+            self.evaluation.author(),
             mat.number,
             1,
             451,
@@ -1541,29 +1538,29 @@ impl MaterialHeader {
         count += 1;
 
         // 2nd line
-        let ddate = match self.evaluation.get_distribution_date() {
+        let ddate = match self.evaluation.distribution_date() {
             Some(date) => format!("DIST-{}", date.format("%h%y")),
             None => String::new(),
         };
         // Note that ENDF is again a bit broken since number of revisions may
         // be grater than 9, but only one character is allowed when printing the
         // date. This is why we need to take 'nmod mod 10'
-        let rdate = match self.evaluation.get_revision_date() {
+        let rdate = match self.evaluation.revision_date() {
             Some(date) => format!(
                 "REV{:>1}-{}",
-                self.evaluation.get_mod_seq() % 10,
+                self.evaluation.mod_seq() % 10,
                 date.format("%h%y")
             ),
             None => String::new(),
         };
-        let endate = match self.evaluation.get_mater_file_date() {
+        let endate = match self.evaluation.mater_file_date() {
             Some(date) => date.format("%Y%m%d").to_string(),
             None => String::new(),
         };
         writeln!(
             stream,
             " {:<21}{:<11}{:<11}{:>22}{:>4}{:>2}{:>3}{:>5}",
-            self.evaluation.get_reference(),
+            self.evaluation.reference(),
             ddate,
             rdate,
             endate,
@@ -1766,39 +1763,39 @@ mod tests {
 
         // Verify header contents
         // Library info
-        assert_eq!(header.library.get_name(), "ENDF/B");
-        assert_eq!(header.library.get_version(), (&6, &0));
+        assert_eq!(header.library.name(), "ENDF/B");
+        assert_eq!(header.library.version(), (&6, &0));
 
         // Physical info
-        assert_eq!(*header.data.get_atomic_number(), 1);
-        assert_eq!(*header.data.get_mass_number(), 0);
-        assert_eq!(*header.data.get_atomic_weight_ratio(), 0.999242);
-        assert_eq!(header.data.get_state_numbers(), (0, 0));
-        assert_eq!(*header.data.get_excitation_energy(), 0.0);
-        assert_eq!(*header.data.get_lrp(), metadata::ResonanceInfo::NoResonance);
+        assert_eq!(*header.data.atomic_number(), 1);
+        assert_eq!(*header.data.mass_number(), 0);
+        assert_eq!(*header.data.atomic_weight_ratio(), 0.999242);
+        assert_eq!(header.data.state_numbers(), (0, 0));
+        assert_eq!(*header.data.excitation_energy(), 0.0);
+        assert_eq!(*header.data.lrp(), metadata::ResonanceInfo::NoResonance);
         assert!(!header.data.is_fissile());
         assert!(header.data.is_stable());
 
         // Evaluation info
-        assert_eq!(*header.evaluation.get_mod_seq(), 3);
-        assert_eq!(*header.evaluation.get_ldvr(), 1);
-        assert_eq!(header.evaluation.get_labratory(), "Contin");
-        assert_eq!(header.evaluation.get_author(), "John Wick");
-        assert_eq!(header.evaluation.get_reference(), "GLOCK19");
-        assert_eq!(*header.evaluation.get_temperature(), 0.0);
+        assert_eq!(*header.evaluation.mod_seq(), 3);
+        assert_eq!(*header.evaluation.ldvr(), 1);
+        assert_eq!(header.evaluation.labratory(), "Contin");
+        assert_eq!(header.evaluation.author(), "John Wick");
+        assert_eq!(header.evaluation.reference(), "GLOCK19");
+        assert_eq!(*header.evaluation.temperature(), 0.0);
 
         assert_eq!(
-            *header.evaluation.get_evaluation_date(),
+            *header.evaluation.evaluation_date(),
             chrono::NaiveDate::from_ymd_opt(2007, 12, 1).unwrap()
         );
         assert_eq!(
-            *header.evaluation.get_distribution_date(),
+            *header.evaluation.distribution_date(),
             chrono::NaiveDate::from_ymd_opt(1997, 12, 1)
         );
 
-        assert_eq!(*header.evaluation.get_revision_date(), None);
+        assert_eq!(*header.evaluation.revision_date(), None);
         assert_eq!(
-            *header.evaluation.get_mater_file_date(),
+            *header.evaluation.mater_file_date(),
             chrono::NaiveDate::from_ymd_opt(1987, 04, 12)
         );
 
@@ -1847,7 +1844,7 @@ mod tests {
 
         // Check revision data
         assert_eq!(
-            *header.evaluation.get_revision_date(),
+            *header.evaluation.revision_date(),
             chrono::NaiveDate::from_ymd_opt(2013, 04, 1)
         );
 
