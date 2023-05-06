@@ -14,7 +14,7 @@ use itertools::Itertools;
 
 use crate::conversions::{print_endf_float, to_f64, to_i32};
 use crate::data_structures::{InterpolationType, Table};
-use crate::error::{EndfError, FormatError, FormatErrorKind};
+use crate::error::{EndfError, FormatError, FormatErrorKind, ParseError};
 
 ///
 /// Trait to group together all types of ENDF records
@@ -381,6 +381,222 @@ impl<'a> Record for TextRecord<'a> {
     }
 }
 
+///
+/// INTG (Integer) Record
+///
+/// Is composed of two 5-digit integers ii and jj followed by number of
+/// integers composed of maximum `digits` number of digits.
+///
+/// In text form it spans only a single row. Number of digits lies in
+/// 2-6 (inclusive) range.
+///
+#[derive(Debug)]
+pub struct IntgRecord {
+    ii: i32,
+    jj: i32,
+    digits: u32,
+    max_ints: usize,
+    kij: [i32; 18],
+}
+
+impl IntgRecord {
+    ///
+    /// Local helper map between number of digits and expected number of numbers
+    /// in a line
+    ///
+    /// Since we need to cover only 5 cases allowed in ENDF it is cleaner to just
+    /// list them all
+    ///
+    /// # Panics
+    /// If the digits are outside of 2-6 range (inclusive).
+    ///
+    fn num_of_ints(digits: u32) -> usize {
+        match digits {
+            2 => 18,
+            3 => 13,
+            4 => 11,
+            5 => 9,
+            6 => 8,
+            _ => panic!("Invalid digit range"),
+        }
+    }
+
+    ///
+    /// Create new [IntgRecord] from a line of ENDF
+    ///
+    /// `digits` must be in 2-6 (inclusive) range.
+    ///
+    pub fn from_endf_line(s: &str, digits: u32) -> Result<Self, EndfError> {
+        // Check length
+        if s.len() != 66 {
+            return Err(FormatError::new(
+                FormatErrorKind::WrongLineLength {
+                    expected: 66,
+                    length: s.len(),
+                },
+                s,
+            )
+            .into());
+        }
+
+        // Check the digits
+        if !(2..7).contains(&digits) {
+            return Err(FormatError::misc(&format!(
+                "Number of digits {} must be in 2-6 range (inclusive).",
+                digits
+            ))
+            .into());
+        }
+
+        let ii = to_i32(&s[0..5])?;
+        let jj = to_i32(&s[5..10])?;
+
+        // If number of digits is 6 there is no space after 2nd index
+        let start: usize = if digits != 6 { 11 } else { 10 };
+
+        // Calculate number of entries and length of the number field
+        let n = Self::num_of_ints(digits);
+        let length = ((digits as usize + 1) * n) as usize;
+
+        // We construct temporary vector sadly
+        let nums = s[start..start + length]
+            .as_bytes()
+            .chunks((digits + 1) as usize)
+            .map(|v| std::str::from_utf8(v).unwrap())
+            .map(|v| to_i32(v))
+            .collect::<Result<Vec<_>, ParseError>>()?;
+        Ok(Self::new(ii, jj, digits, nums.into_iter())?)
+    }
+
+    ///
+    /// Construct new [IntgRecord] from components
+    ///
+    /// # Arguments
+    /// - `ii` - First index. Maximum of 5 decimal digits
+    /// - `ii` - Second index. Maximum of 5 decimal digits
+    /// - `digits` - Number of digits for numbers that follow. Range 2-6 and
+    ///              does not include sign (i.e. `digits=2` expects 3-character
+    ///              fields)
+    /// - `nums` - Iterator over the integers to fill the record. Must fit into
+    ///            `digits` decimal digits plus sign. May be shorter than maximum
+    ///            number of entries. The remainder will be padded with 0s.
+    ///
+    pub fn new(
+        ii: i32,
+        jj: i32,
+        digits: u32,
+        nums: impl Iterator<Item = i32>,
+    ) -> Result<Self, FormatError> {
+        // Check the range of the indices
+        if !(-9999..99999).contains(&ii) || !(-9999..99999).contains(&jj) {
+            return Err(FormatError::misc(&format!(
+                "Indices {}, {} do not fit in 5-digit fields",
+                ii, jj
+            )));
+        }
+        // Check the digits
+        if !(2..7).contains(&digits) {
+            return Err(FormatError::misc(&format!(
+                "Number of digits {} must be in 2-6 range (inclusive).",
+                digits
+            )));
+        }
+
+        // Construct the range of admissible integers
+        let range = -10_i32.pow(digits)..10_i32.pow(digits);
+        let max_ints = Self::num_of_ints(digits);
+        let mut res = Self {
+            ii,
+            jj,
+            digits,
+            max_ints,
+            kij: [0; 18],
+        };
+
+        // Fill the array with numbers
+        let mut iter = nums;
+
+        for i in 0..res.max_ints {
+            match iter.next() {
+                Some(num) => {
+                    if !range.contains(&num) {
+                        return Err(FormatError::misc(&format!(
+                            "Number {} does not fit ino {}",
+                            num, digits
+                        )));
+                    }
+                    res.kij[i] = num;
+                }
+                None => break,
+            }
+        }
+        if iter.next().is_some() {
+            return Err(FormatError::misc(
+                "Some elements in the iterator are unused",
+            ));
+        }
+
+        Ok(res)
+    }
+
+    ///
+    /// Get ii index
+    ///
+    pub fn ii(&self) -> i32 {
+        self.ii
+    }
+
+    ///
+    /// Get jj index
+    ///
+    pub fn jj(&self) -> i32 {
+        self.jj
+    }
+
+    ///
+    /// Get maximum number of decimal digits of the numbers
+    ///
+    pub fn digits(&self) -> u32 {
+        self.digits
+    }
+
+    ///
+    /// Get the numbers
+    ///
+    pub fn kij(&self) -> &[i32] {
+        &self.kij[..self.max_ints]
+    }
+}
+
+impl Record for IntgRecord {
+    fn stringify(&self) -> String {
+        // Case of 6-digit is special
+        // there is no space after 2nd index
+        let pad = match self.digits {
+            6 => "",
+            _ => " ",
+        };
+        let mut res = format!("{:>5}{:>5}{}", self.ii, self.jj, pad);
+
+        // Add the numbers
+        let nums = self.kij().into_iter().map(|n| match self.digits {
+            2 => format!("{:>3}", n),
+            3 => format!("{:>4}", n),
+            4 => format!("{:>5}", n),
+            5 => format!("{:>6}", n),
+            6 => format!("{:>7}", n),
+            _ => panic!("Should never be the case!"),
+        });
+
+        for num in nums {
+            res.push_str(&num);
+        }
+
+        // Pad the string to 66 character
+        format!("{:<66}", res)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,5 +771,83 @@ mod tests {
         .is_err());
 
         assert!(TextRecord::new("This string contains is not ascii χρ").is_err());
+    }
+
+    #[test]
+    fn test_intg_record() {
+        let cases: &[(u32, &str)] = &[
+            (
+                2_u32,
+                "    1    2 -11-12 12  3 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 ",
+            ),
+            (
+                3_u32,
+                "    1    2 -111-111 -11 -11 -11 -11 -11 -11 -11 -11 -11 -11 -11   ",
+            ),
+            (
+                4_u32,
+                "    1    2 -1111-1111 -111 -111 -111 -111 -111 -111 -111 -111 -111",
+            ),
+            (
+                5_u32,
+                "    1    2 -11111-11111-11111-11111-11111-11111-11111-11111-11111 ",
+            ),
+            (
+                6_u32,
+                "    1    2-123456-123456-123456-123456-123456-123456-123456-123456",
+            ),
+        ];
+
+        // Round trip test
+        for (d, s) in cases {
+            assert_eq!(*s, IntgRecord::from_endf_line(*s, *d).unwrap().write());
+        }
+    }
+
+    #[test]
+    fn test_intg_from_line_errors() {
+        let valid = "    1    2 -11-12 12  3 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 ";
+        let invalid = "    1    2 -11-12 12  3 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1";
+
+        // Check invalid range of digits
+        assert!(IntgRecord::from_endf_line(valid, 1).is_err());
+        assert!(IntgRecord::from_endf_line(valid, 7).is_err());
+
+        // Check wrong line length
+        assert!(IntgRecord::from_endf_line(invalid, 2).is_err());
+    }
+
+    #[test]
+    fn test_new_intg_record() {
+        // Allow to short lists and pad with 0s
+        let record = IntgRecord::new(1, 2, 3, [1; 10].into_iter()).unwrap();
+
+        assert_eq!(1, record.ii());
+        assert_eq!(2, record.jj());
+        assert_eq!(3, record.digits());
+
+        assert_eq!([1; 10], record.kij()[..10]);
+        assert_eq!([0; 3], record.kij()[10..13]);
+    }
+
+    #[test]
+    fn test_new_intg_errors() {
+        // Too large indices
+        assert!(IntgRecord::new(123456, 2, 3, [1; 10].into_iter()).is_err());
+        assert!(IntgRecord::new(1, 123456, 3, [1; 10].into_iter()).is_err());
+
+        // Invalid number of digits
+        assert!(IntgRecord::new(1, 2, 1, [1; 10].into_iter()).is_err());
+        assert!(IntgRecord::new(1, 2, 7, [1; 10].into_iter()).is_err());
+
+        // To large values in the number list
+        assert!(IntgRecord::new(1, 2, 2, [100].into_iter()).is_err());
+        assert!(IntgRecord::new(1, 2, 3, [1000].into_iter()).is_err());
+        assert!(IntgRecord::new(1, 2, 4, [10000].into_iter()).is_err());
+        assert!(IntgRecord::new(1, 2, 5, [100000].into_iter()).is_err());
+        assert!(IntgRecord::new(1, 2, 6, [1000000].into_iter()).is_err());
+
+        // Too long array
+        assert!(IntgRecord::new(123456, 2, 3, [1; 20].into_iter()).is_err());
     }
 }

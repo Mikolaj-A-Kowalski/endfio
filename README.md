@@ -20,7 +20,7 @@ At the moment `endfio` supports reading and writing the following records:
 - [x] LIST Record
 - [x] TAB1 Record
 - [x] TAB2 Record
-- [ ] INTG Record
+- [x] INTG Record
 
 # Format Warnings
 

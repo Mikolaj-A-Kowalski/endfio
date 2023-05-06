@@ -21,6 +21,7 @@ pub mod records;
 
 use core::fmt;
 use itertools::{Either, Itertools};
+use records::IntgRecord;
 use std::collections::BTreeMap;
 use std::io::{self, BufRead, Write};
 use std::ops::Index;
@@ -473,6 +474,19 @@ pub fn get_tab2<'a>(
         interpolation,
         regions,
     })
+}
+
+///
+/// Read INTG record and advance iterator by a single line
+///
+pub fn get_intg<'a>(
+    iter: &mut impl std::iter::Iterator<Item = &'a str>,
+    digits: u32,
+) -> Result<IntgRecord, EndfError> {
+    match iter.next() {
+        Some(s) => IntgRecord::from_endf_line(s, digits),
+        None => Err(EndfError::EndOfSection),
+    }
 }
 
 ///
