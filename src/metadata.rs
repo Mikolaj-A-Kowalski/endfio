@@ -5,6 +5,7 @@
 use chrono::naive::NaiveDate;
 use regex::Regex;
 use std::{collections::HashMap, str::FromStr};
+use std::fmt;
 
 use lazy_static::lazy_static;
 
@@ -571,12 +572,18 @@ impl FromStr for LibraryInfo {
     }
 }
 
-impl ToString for LibraryInfo {
-    ///
-    /// Print the Library name and version in the String form
-    ///
-    fn to_string(&self) -> String {
-        format!("{} {}.{}", NLIB_TO_NAME[&self.nlib], self.nver, self.lrel)
+// impl ToString for LibraryInfo {
+//     ///
+//     /// Print the Library name and version in the String form
+//     ///
+//     fn to_string(&self) -> String {
+//         format!("{} {}.{}", NLIB_TO_NAME[&self.nlib], self.nver, self.lrel)
+//     }
+// }
+
+impl fmt::Display for LibraryInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}.{}", NLIB_TO_NAME[&self.nlib], self.nver, self.lrel)
     }
 }
 
@@ -749,7 +756,7 @@ impl EvaluationInfo {
     /// * 'temperature` - Temperature of the target nuclide \[K\]
     /// * 'max_energy` - Maximum energy in the evaluation \[eV\]
     /// * `dates` - Tuple of (Evaluation, Distribution, Release, Master file) dates
-    ///             given as NaiveDates or None if not known
+    ///   given as NaiveDates or None if not known
     ///
     #[allow(clippy::too_many_arguments)]
     pub fn new(
