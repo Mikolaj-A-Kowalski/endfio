@@ -47,8 +47,8 @@ fn test_unknown_nlib() {
 
     match tape {
         Err(endfio::error::EndfError::Format { .. }) => {}
-        Err(e) => assert!(false, "Wrong error type {:?}", e),
-        Ok(_) => assert!(false, "Tape did not return an error"),
+        Err(e) => panic!("Wrong error type {:?}", e),
+        Ok(_) => panic!("Tape did not return an error"),
     }
 }
 
@@ -59,8 +59,8 @@ fn test_wrong_date_format() {
 
     match tape {
         Err(endfio::error::EndfError::Format { .. }) => {}
-        Err(e) => assert!(false, "Wrong error type {:?}", e),
-        Ok(_) => assert!(false, "Tape did not return an error"),
+        Err(e) => panic!("Wrong error type {:?}", e),
+        Ok(_) => panic!("Tape did not return an error"),
     }
 }
 
@@ -71,8 +71,8 @@ fn test_wrong_master_date_format() {
 
     match tape {
         Err(endfio::error::EndfError::Format { .. }) => {}
-        Err(e) => assert!(false, "Wrong error type {:?}", e),
-        Ok(_) => assert!(false, "Tape did not return an error"),
+        Err(e) => panic!("Wrong error type {:?}", e),
+        Ok(_) => panic!("Tape did not return an error"),
     }
 }
 
@@ -83,8 +83,8 @@ fn test_too_long_directory() {
 
     match tape {
         Err(endfio::error::EndfError::Format { .. }) => {}
-        Err(e) => assert!(false, "Wrong error type {:?}", e),
-        Ok(_) => assert!(false, "Tape did not return an error"),
+        Err(e) => panic!("Wrong error type {:?}", e),
+        Ok(_) => panic!("Tape did not return an error"),
     }
 }
 
@@ -95,8 +95,8 @@ fn test_too_short_directory() {
 
     match tape {
         Err(endfio::error::EndfError::Format { .. }) => {}
-        Err(e) => assert!(false, "Wrong error type {:?}", e),
-        Ok(_) => assert!(false, "Tape did not return an error"),
+        Err(e) => panic!("Wrong error type {:?}", e),
+        Ok(_) => panic!("Tape did not return an error"),
     }
 }
 
@@ -107,8 +107,8 @@ fn test_mismatched_directory() {
 
     match tape {
         Err(endfio::error::EndfError::Format { .. }) => {}
-        Err(e) => assert!(false, "Wrong error type {:?}", e),
-        Ok(_) => assert!(false, "Tape did not return an error"),
+        Err(e) => panic!("Wrong error type {:?}", e),
+        Ok(_) => panic!("Tape did not return an error"),
     }
 }
 
@@ -119,7 +119,7 @@ fn test_non_ascii() {
 
     match tape {
         Err(endfio::error::EndfError::Format { .. }) => {}
-        Err(e) => assert!(false, "Wrong error type {:?}", e),
-        Ok(_) => assert!(false, "Tape did not return an error"),
+        Err(e) => panic!("Wrong error type {:?}", e),
+        Ok(_) => panic!("Tape did not return an error"),
     }
 }
