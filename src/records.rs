@@ -39,7 +39,7 @@ pub trait Record {
     ///
     fn write(&self) -> String {
         let out = self.stringify();
-        if out.len() % 66 != 0 {
+        if !out.len().is_multiple_of(66) {
             panic!(
                 "Record did not print full 66 character ENDF lines: '{}'!",
                 out
@@ -456,14 +456,13 @@ impl IntgRecord {
 
         // Calculate number of entries and length of the number field
         let n = Self::num_of_ints(digits);
-        let length = ((digits as usize + 1) * n) as usize;
+        let length = (digits as usize + 1) * n;
 
         // We construct temporary vector sadly
-        let nums = s[start..start + length]
-            .as_bytes()
+        let nums = s.as_bytes()[start..start + length]
             .chunks((digits + 1) as usize)
             .map(|v| std::str::from_utf8(v).unwrap())
-            .map(|v| to_i32(v))
+            .map(to_i32)
             .collect::<Result<Vec<_>, ParseError>>()?;
         Ok(Self::new(ii, jj, digits, nums.into_iter())?)
     }
@@ -475,11 +474,11 @@ impl IntgRecord {
     /// - `ii` - First index. Maximum of 5 decimal digits
     /// - `ii` - Second index. Maximum of 5 decimal digits
     /// - `digits` - Number of digits for numbers that follow. Range 2-6 and
-    ///              does not include sign (i.e. `digits=2` expects 3-character
-    ///              fields)
+    ///   does not include sign (i.e. `digits=2` expects 3-character
+    ///   fields)
     /// - `nums` - Iterator over the integers to fill the record. Must fit into
-    ///            `digits` decimal digits plus sign. May be shorter than maximum
-    ///            number of entries. The remainder will be padded with 0s.
+    ///   `digits` decimal digits plus sign. May be shorter than maximum
+    ///   number of entries. The remainder will be padded with 0s.
     ///
     pub fn new(
         ii: i32,
@@ -579,7 +578,7 @@ impl Record for IntgRecord {
         let mut res = format!("{:>5}{:>5}{}", self.ii, self.jj, pad);
 
         // Add the numbers
-        let nums = self.kij().into_iter().map(|n| match self.digits {
+        let nums = self.kij().iter().map(|n| match self.digits {
             2 => format!("{:>3}", n),
             3 => format!("{:>4}", n),
             4 => format!("{:>5}", n),
@@ -800,7 +799,7 @@ mod tests {
 
         // Round trip test
         for (d, s) in cases {
-            assert_eq!(*s, IntgRecord::from_endf_line(*s, *d).unwrap().write());
+            assert_eq!(*s, IntgRecord::from_endf_line(s, *d).unwrap().write());
         }
     }
 

@@ -162,7 +162,7 @@ impl Section {
     ///
     /// Get iterator over lines of the Section
     ///
-    pub fn iter(&self) -> SectionIterator {
+    pub fn iter(&self) -> SectionIterator<'_> {
         SectionIterator {
             section: self,
             pos: 0,
@@ -329,7 +329,7 @@ pub fn get_list<'a>(
                 .map(|x| std::str::from_utf8(x).unwrap())
         })
         .take(n as usize)
-        .map(|x| to_f64(x));
+        .map(to_f64);
 
     // Convert to a vector and move result to front
     let list = numbers.collect::<Result<Vec<_>, _>>();
@@ -367,7 +367,7 @@ pub fn get_tab1<'a>(
                 .map(|x| std::str::from_utf8(x).unwrap())
         })
         .take((2 * n_points) as usize)
-        .map(|x| to_f64(x));
+        .map(to_f64);
 
     // Partition into x and y parts
     let (x, y): (Vec<_>, Vec<_>) = numbers.enumerate().partition_map(|(i, num)| {
@@ -412,7 +412,7 @@ fn read_interpolation_regions<'a>(
     }
     // Create iterator over 11-character fields with the numbers
     let n = n as usize;
-    let n_lines = 2 * n / 6 + usize::from(2 * n % 6 != 0);
+    let n_lines = 2 * n / 6 + usize::from(!(2 * n).is_multiple_of(6));
     let lines = iter.take(n_lines);
     let numbers = lines
         .flat_map(|x| {
@@ -421,7 +421,7 @@ fn read_interpolation_regions<'a>(
                 .map(|x| std::str::from_utf8(x).unwrap())
         })
         .take(2 * n)
-        .map(|x| to_i32(x));
+        .map(to_i32);
 
     // Partition iterator into regions an Interpolation parts
     // In ENDF regions are given with 1-indexing
@@ -429,7 +429,7 @@ fn read_interpolation_regions<'a>(
     let (regions, interpolation): (Vec<_>, Vec<_>) =
         numbers.enumerate().partition_map(|(i, num)| {
             if i % 2 == 0 {
-                Either::Left(num.and_then(|x| Ok((x - 1) as usize)))
+                Either::Left(num.map(|x| (x - 1) as usize))
             } else {
                 Either::Right(num)
             }
@@ -441,7 +441,7 @@ fn read_interpolation_regions<'a>(
     // Collect the iterators
     let interpolation = interpolation
         .into_iter()
-        .map(|n| InterpolationType::from_flag(n))
+        .map(InterpolationType::from_flag)
         .collect::<Result<Vec<_>, _>>()?;
     let regions = regions.into_iter().collect::<Result<Vec<_>, _>>()?;
 
@@ -751,15 +751,15 @@ impl Material {
     ///
     /// # Arguments
     /// * `mat`- [MAT] number for the material. It is necessary to know it to
-    ///           generate the HSUB *overture*.
+    ///   generate the HSUB *overture*.
     /// * `library` - Library info
     /// * `data` - Physical info about the nuclide
     /// * `evaluation` - Info about this particular evaluation
     /// * `part` - Type of the incident particle
     /// * `kind` - Type of the data stored in this Material
     /// * `comment` - A text comment contained in the header. Respects newlines
-    ///               folds lines longer than 66 characters. Must contain only
-    ///               ASCII characters.
+    ///   folds lines longer than 66 characters. Must contain only
+    ///   ASCII characters.
     pub fn new(
         mat: MAT,
         library: LibraryInfo,
@@ -881,9 +881,7 @@ impl Material {
         // Count number of sections
         // We need '1 +' to account for the header section!
         let num_sections = 1 + self
-            .contents
-            .iter()
-            .flat_map(|(_, file)| file.into_iter())
+            .contents.values().flat_map(|file| file.into_iter())
             .count();
 
         // Print the header
@@ -1052,13 +1050,13 @@ impl Tape {
     ///
     /// #  Arguments
     /// * 'file' - An instance which implements io::BufRead trait, which allows
-    ///            to obtain an iterator over the lines
+    ///   to obtain an iterator over the lines
     ///
     fn from_reader(file: &mut dyn io::BufRead) -> Result<Self, EndfError> {
         // When reading a tape we need to work with maps
         type PseudoTape = BTreeMap<MAT, BTreeMap<MF, BTreeMap<MT, Section>>>;
-        type PseudoMaterial = BTreeMap<MF, BTreeMap<MT, Section>>;
-        type PseudoFile = BTreeMap<MT, Section>;
+        // type PseudoMaterial = BTreeMap<MF, BTreeMap<MT, Section>>;
+        // type PseudoFile = BTreeMap<MT, Section>;
 
         let mut tape: PseudoTape = PseudoTape::default();
 
@@ -1087,9 +1085,9 @@ impl Tape {
                     if ctrl.is_valid() {
                         let material = tape
                             .entry(ctrl.mat.try_into()?)
-                            .or_insert(PseudoMaterial::default());
-                        let file = material.entry(ctrl.mf).or_insert(PseudoFile::default());
-                        let section = file.entry(ctrl.mt).or_insert(Section::default());
+                            .or_default();
+                        let file = material.entry(ctrl.mf).or_default();
+                        let section = file.entry(ctrl.mt).or_default();
                         section.append(&l[0..66]);
                     }
                 }
@@ -1129,7 +1127,7 @@ impl Tape {
     ///
     /// * `stream` -> Stream to which output will be written
     /// * `tpid` -> String to be printed in the first line of ENDF file. It is TPID record without
-    ///             specified format in ENDF Manual. Maximum of 80 characters.
+    ///   specified format in ENDF Manual. Maximum of 80 characters.
     ///
     fn print(&self, stream: &mut impl Write, tpid: &str) -> Result<(), EndfError> {
         // Start with TPID record
@@ -1150,7 +1148,7 @@ impl Tape {
     /// # Arguments
     /// * 'filename' - String view indicating a path to the file
     /// * `tpid`  - String to be printed in the first line of ENDF file. It is TPID record without
-    ///             specified format in ENDF Manual. Maximum of 80 characters.
+    ///   specified format in ENDF Manual. Maximum of 80 characters.
     ///
     pub fn to_file(&self, filename: &str, tpid: &str) -> Result<(), EndfError> {
         let file = std::fs::File::create(filename)?;
@@ -1163,7 +1161,7 @@ impl Tape {
     /// # Arguments
     /// * 'writer'- Any kind of writer
     /// * `tpid`  - String to be printed in the first line of ENDF file. It is TPID record without
-    ///             specified format in ENDF Manual. Maximum of 80 characters.
+    ///   specified format in ENDF Manual. Maximum of 80 characters.
     ///
     pub fn to_writer(&self, writer: &mut impl std::io::Write, tpid: &str) -> Result<(), EndfError> {
         self.print(writer, tpid)
@@ -1810,7 +1808,7 @@ mod tests {
         assert_eq!(*header.evaluation.revision_date(), None);
         assert_eq!(
             *header.evaluation.mater_file_date(),
-            chrono::NaiveDate::from_ymd_opt(1987, 04, 12)
+            chrono::NaiveDate::from_ymd_opt(1987, 4, 12)
         );
 
         // Incident particle
@@ -1859,7 +1857,7 @@ mod tests {
         // Check revision data
         assert_eq!(
             *header.evaluation.revision_date(),
-            chrono::NaiveDate::from_ymd_opt(2013, 04, 1)
+            chrono::NaiveDate::from_ymd_opt(2013, 4, 1)
         );
 
         // Print back to a string and verify against input

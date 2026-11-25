@@ -93,8 +93,8 @@ pub fn to_f64(string: &str) -> Result<f64, ParseError> {
     let num = match captures {
         Some(c) => format!(
             "{}E{}",
-            &c.get(1).unwrap().as_str(),
-            &c.get(2).unwrap().as_str()
+            c.get(1).unwrap().as_str(),
+            c.get(2).unwrap().as_str()
         )
         .parse::<f64>(),
         _ => trimmed.parse::<f64>(),
