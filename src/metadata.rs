@@ -572,15 +572,6 @@ impl FromStr for LibraryInfo {
     }
 }
 
-// impl ToString for LibraryInfo {
-//     ///
-//     /// Print the Library name and version in the String form
-//     ///
-//     fn to_string(&self) -> String {
-//         format!("{} {}.{}", NLIB_TO_NAME[&self.nlib], self.nver, self.lrel)
-//     }
-// }
-
 impl fmt::Display for LibraryInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {}.{}", NLIB_TO_NAME[&self.nlib], self.nver, self.lrel)
